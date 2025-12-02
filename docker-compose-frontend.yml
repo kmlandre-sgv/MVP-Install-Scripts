@@ -1,0 +1,28 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+      - SERVER_URL=${SERVER_URL:-http://localhost:8001/}
+      - TUS_FILES_URL=${TUS_FILES_URL:-http://localhost:8001/files/}
+      - OPENSEADRAGON_PREFIX_URL=${OPENSEADRAGON_PREFIX_URL:-h...ps://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/}
+    develop:
+      watch:
+      - action: rebuild
+        path: .
+    environment:
+      PORT: ${PORT_CONTAINER:-3000}
+      NODE_ENV: production
+      BASIC_AUTH_USERNAME: admin
+      BASIC_AUTH_ADMIN_USERNAME: surgivance
+      BASIC_AUTH_ADMIN_PASSWORD: ''
+      BASIC_AUTH_GUEST_USERNAME: SVguest
+      BASIC_AUTH_GUEST_PASSWORD: ''
+      DISCLAIMER_CONTENT_URL: app.surgivance.com
+      DISCLAIMER_NOTIFY_EMAIL: info@surgivance.com
+      SERVER_URL: ${SERVER_URL:-http://localhost:8001/}
+      TUS_FILES_URL: ${TUS_FILES_URL:-http://localhost:8001/files/}
+      OPENSEADRAGON_PREFIX_URL: ${OPENSEADRAGON_PREFIX_URL:-htt...s://cdnjs.cloudflare.com/ajax/libs/openseadragon/4.1.0/images/}
+    ports:
+    - ${PORT_HOST:-8000}:${PORT_CONTAINER:-3000}
+    restart: unless-stopped

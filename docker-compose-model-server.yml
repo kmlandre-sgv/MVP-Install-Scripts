@@ -1,0 +1,34 @@
+services:
+  ml:
+    build: .
+    shm_size: 32gb
+    volumes:
+    - .:/workspace/
+    - /svdata/raw/Data1_PointScan:/data/confocal:ro
+    - /svdata/raw/Data2_HnE_origin:/data/histology:ro
+    - /svdata/kahkeng/processed:/processed
+    - /svdata/kahkeng/artifacts:/artifacts
+    command: tail -f /dev/null
+    runtime: nvidia
+    env_file:
+    - .env
+    restart: unless-stopped
+  server:
+    build: .
+    container_name: machine-learning-server
+    shm_size: 32gb
+    volumes:
+    - /svdata/kahkeng/artifacts:/artifacts
+    - /svdata/kahkeng/jobs:/jobs
+    - /svdata/kahkeng/sample_images:/sample_images
+    runtime: nvidia
+    environment:
+      PORT: 8000
+      WEBHOOK_AUTH_USERNAME: ${WEBHOOK_AUTH_USERNAME:-surgivance}
+      WEBHOOK_AUTH_PASSWORD: ${WEBHOOK_AUTH_PASSWORD:-surgivance}
+    networks:
+    - mvp-net
+    restart: unless-stopped
+networks:
+  mvp-net:
+    external: true

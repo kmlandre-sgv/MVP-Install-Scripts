@@ -1,0 +1,131 @@
+services:
+  app:
+    build: .
+    container_name: api-server
+    develop:
+      watch:
+      - action: sync+restart
+        path: src
+        target: /app/src
+      - action: rebuild
+        path: pyproject.toml
+      - action: rebuild
+        path: poetry.lock
+      - action: rebuild
+        path: Dockerfile
+      - action: rebuild
+        path: alembic/
+      - action: rebuild
+        path: alembic.ini
+    volumes:
+    - /svdata/appdata:/tmp/surgivance
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8000
+      DATABASE_URL: postgresql://postgres:surgivance@db:5432/postgres
+      REMOTE_STORAGE_ENDPOINT_INTERNAL: ${REMOTE_STORAGE_ENDPOINT_INTERNAL:-minio:9000}
+      REMOTE_STORAGE_SECURE_INTERNAL: ${REMOTE_STORAGE_SECURE_INTERNAL:-false}
+      REMOTE_STORAGE_ENDPOINT_EXTERNAL: ${REMOTE_STORAGE_ENDPOINT_EXTERNAL:-localhost:8003}
+      REMOTE_STORAGE_SECURE_EXTERNAL: ${REMOTE_STORAGE_SECURE_EXTERNAL:-false}
+      REMOTE_STORAGE_ACCESS_KEY: 4F5E3EQU5GXD9EUOC3IH
+      REMOTE_STORAGE_SECRET_KEY: 0KKOsgoZ4JZwpCwrsNVfinSgYY5nBWbyoN3SmGI4
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:8000}
+      JOB_SERVER_URL: ${JOB_SERVER_URL:-http://machine-learning-server:8000}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://api-server:8000/webhook}
+      WEBHOOK_AUTH_USERNAME: ${WEBHOOK_AUTH_USERNAME}
+      WEBHOOK_AUTH_PASSWORD: ${WEBHOOK_AUTH_PASSWORD}
+      TUS_FILES_DIR: /tmp/surgivance
+      TUS_LOCATION: ${TUS_LOCATION:-http://localhost:8001/files}
+    ports:
+    - ${PORT:-8001}:8000
+    networks:
+    - mvp-net
+    restart: unless-stopped
+  job-queue-worker:
+    build: .
+    command:
+    - bash
+    - ./scripts/job_queue_worker.sh
+    develop:
+      watch:
+      - action: sync+restart
+        path: src/job_queue_worker
+        target: /app/src/job_queue_worker
+      - action: sync+restart
+        path: scripts/job_queue_worker.sh
+        target: /app/scripts/job_queue_worker.sh
+      - action: rebuild
+        path: pyproject.toml
+      - action: rebuild
+        path: poetry.lock
+      - action: rebuild
+        path: Dockerfile
+    volumes:
+    - /tmp/surgivance:/tmp/surgivance
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8000
+      DATABASE_URL: postgresql://postgres:surgivance@db:5432/postgres
+      REMOTE_STORAGE_ENDPOINT_INTERNAL: ${REMOTE_STORAGE_ENDPOINT_INTERNAL:-minio:9000}
+      REMOTE_STORAGE_SECURE_INTERNAL: ${REMOTE_STORAGE_SECURE_INTERNAL:-false}
+      REMOTE_STORAGE_ENDPOINT_EXTERNAL: ${REMOTE_STORAGE_ENDPOINT_EXTERNAL:-localhost:8003}
+      REMOTE_STORAGE_SECURE_EXTERNAL: ${REMOTE_STORAGE_SECURE_EXTERNAL:-false}
+      REMOTE_STORAGE_ACCESS_KEY: 4F5E3EQU5GXD9EUOC3IH
+      REMOTE_STORAGE_SECRET_KEY: 0KKOsgoZ4JZwpCwrsNVfinSgYY5nBWbyoN3SmGI4
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:8000}
+      JOB_SERVER_URL: ${JOB_SERVER_URL:-http://machine-learning-server:8000}
+      WEBHOOK_URL: ${WEBHOOK_URL:-http://api-server:8000/webhook}
+      WEBHOOK_AUTH_USERNAME: ${WEBHOOK_AUTH_USERNAME}
+      WEBHOOK_AUTH_PASSWORD: ${WEBHOOK_AUTH_PASSWORD}
+      TUS_FILES_DIR: /tmp/surgivance
+      TUS_LOCATION: ${TUS_LOCATION:-http://localhost:8001/files}
+    networks:
+    - mvp-net
+    restart: unless-stopped
+  db:
+    image: postgres:16.2
+    environment:
+      POSTGRES_PASSWORD: surgivance
+    volumes:
+    - ${DB_PG_DUMP_FILE:-/dev/null}:/docker-entrypoint-initdb.d/init.sql
+    - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+    - mvp-net
+    restart: unless-stopped
+  minio:
+    profiles:
+    - minio
+    image: quay.io/minio/minio
+    container_name: minio
+    command:
+    - server
+    - /data
+    - --console-address
+    - :9001
+    environment:
+      MINIO_ROOT_USER: surgivance
+      MINIO_ROOT_PASSWORD: MinioSecurePass2025
+    ports:
+    - 8003:9000
+    - 8004:9001
+    volumes:
+    - /svdata/minio:/data
+    networks:
+    - mvp-net
+    restart: unless-stopped
+volumes:
+  postgres_data: null
+networks:
+  mvp-net:
+    external: true
